@@ -1,6 +1,6 @@
 package com.softwareverde.http;
 
-import org.apache.commons.io.IOUtils;
+import com.softwareverde.util.IoUtil;
 import org.json.JSONObject;
 
 import java.io.IOException;
@@ -73,14 +73,14 @@ public class HttpRequest {
 
     public HttpResponse send() throws IOException {
         final URL url = new URL(_buildUrl());
-        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        final HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.setRequestMethod(_requestMethod.name());
         for (final String header : _headers.keySet()) {
             final String headerValue = _headers.get(header);
             connection.setRequestProperty(header, headerValue);
         }
 
-        boolean doOutput = _requestData != null && _requestData.length > 0;
+        final boolean doOutput = _requestData != null && _requestData.length > 0;
         connection.setDoOutput(doOutput);
         connection.setDoInput(true);
         if (doOutput) {
@@ -96,18 +96,17 @@ public class HttpRequest {
         try {
             responseInputStream = connection.getInputStream();
         }
-        catch (IOException e) {
+        catch (final IOException exception) {
             // unable to open standard input stream, may have error data
             responseInputStream = connection.getErrorStream();
         }
         // responseInputStream may still be null
         byte[] responseBytes = null;
         if (responseInputStream != null) {
-            responseBytes = IOUtils.toByteArray(responseInputStream);
+            responseBytes = IoUtil.readStreamOrThrow(responseInputStream);
         }
 
-        final HttpResponse httpResponse = new HttpResponse(responseBytes, responseCode, responseMessage);
-        return httpResponse;
+        return new HttpResponse(responseBytes, responseCode, responseMessage);
     }
 
     /**
