@@ -1,8 +1,11 @@
 package com.softwareverde.api;
 
+import com.softwareverde.constable.bytearray.ByteArray;
+import com.softwareverde.constable.bytearray.MutableByteArray;
+import com.softwareverde.http.HttpMethod;
 import com.softwareverde.http.HttpRequest;
 import com.softwareverde.http.HttpResponse;
-
+import com.softwareverde.util.Util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,24 +24,24 @@ public abstract class ApiCall<REQUEST extends ApiRequest, RESPONSE extends ApiRe
 
     public abstract RESPONSE call(final REQUEST request) throws Exception;
 
-    protected HttpResponse _call(final String requestPath, final HttpRequest.RequestMethod requestMethod, final ApiRequest request) throws Exception {
+    protected HttpResponse _call(final String requestPath, final HttpMethod requestMethod, final ApiRequest request) throws Exception {
         long startTime = System.currentTimeMillis();
         String apiUrl = "";
         try {
             apiUrl = _getConfiguration().getApiUrl();
 
-            final byte[] requestData = request.toBytes();
+            final ByteArray requestData = MutableByteArray.wrap(request.toBytes());
 
-            final HttpRequest httpRequest = new HttpRequest(apiUrl);
-            httpRequest.setRequestMethod(requestMethod);
-            httpRequest.setRequestPath(requestPath);
+            final HttpRequest httpRequest = new HttpRequest();
+            httpRequest.setUrl(apiUrl + Util.coalesce(requestPath));
+            httpRequest.setMethod(requestMethod);
             httpRequest.setRequestData(requestData);
             for (final String header : request.getHeaderNames()) {
                 final String value = request.getHeader(header);
-                httpRequest.putHeader(header, value);
+                httpRequest.setHeader(header, value);
             }
 
-            final HttpResponse httpResponse = httpRequest.send();
+            final HttpResponse httpResponse = httpRequest.execute();
             _logger.debug("%s%s", "Received ", httpResponse);
             return httpResponse;
         }

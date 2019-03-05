@@ -12,7 +12,7 @@ public abstract class JsonApiRequest extends ApiRequest {
 
     public JsonApiRequest() {
         // header added in constructor to allow for it to be overridden afterward if necessary
-        putHeader("Content-Type", "application/json");
+        this.putHeader("Content-Type", "application/json");
     }
 
     protected abstract Json _toJson() throws Exception;

@@ -7,8 +7,8 @@ public class ApiResponse {
     private final String _httpResponseMessage;
 
     public ApiResponse(final HttpResponse httpResponse) {
-        _httpResponseCode = httpResponse.getHttpResponseCode();
-        _httpResponseMessage = httpResponse.getHttpResponseMessage();
+        _httpResponseCode = httpResponse.getResponseCode();
+        _httpResponseMessage = httpResponse.getResponseMessage();
     }
 
     /**

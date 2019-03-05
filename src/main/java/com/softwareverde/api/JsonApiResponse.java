@@ -13,7 +13,7 @@ public class JsonApiResponse extends ApiResponse {
     public JsonApiResponse(final HttpResponse httpResponse) {
         super(httpResponse);
 
-        _json = httpResponse.getResponseJson();
+        _json = httpResponse.getJsonResult();
         _wasSuccess = Util.coalesce(_json.getBoolean("wasSuccess"), true);
         _errorMessage = Util.coalesce(_json.getString("errorMessage"), super.getHttpResponseMessage());
     }
