@@ -13,6 +13,7 @@ class WebSocketReader {
         void onTextMessage(String message);
         void onBinaryMessage(byte[] message);
         void onPing(byte[] message);
+        void onPong(byte[] message);
         void onClose(int code, String message);
     }
 
@@ -56,6 +57,13 @@ class WebSocketReader {
             @Override
             public void onMessage(final byte[] message) {
                 _messageReceivedCallback.onPing(message);
+            }
+        });
+
+        frameHandler.setPongMessageCallback(new WSFrameHandler.Callback<byte[]>() {
+            @Override
+            public void onMessage(final byte[] message) {
+                _messageReceivedCallback.onPong(message);
             }
         });
 

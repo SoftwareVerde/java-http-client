@@ -50,7 +50,8 @@ public class WSFrameHandler implements WebSocketParser.FrameHandler {
     final protected CloseSocketHandler _closeSocketHandler;
     protected Callback<String> _textMessageCallback;
     protected Callback<byte[]> _binaryMessageCallback;
-    protected Callback<byte[]> _pintMessageCallback;
+    protected Callback<byte[]> _pingMessageCallback;
+    protected Callback<byte[]> _pongMessageCallback;
 
 
     private void _errorClose(final int code, final String message) {
@@ -93,7 +94,11 @@ public class WSFrameHandler implements WebSocketParser.FrameHandler {
     }
 
     public void setPingMessageCallback(final Callback<byte[]> pingMessageCallback) {
-        _pintMessageCallback = pingMessageCallback;
+        _pingMessageCallback = pingMessageCallback;
+    }
+
+    public void setPongMessageCallback(final Callback<byte[]> pongMessageCallback) {
+        _pongMessageCallback = pongMessageCallback;
     }
 
     @Override
@@ -129,7 +134,7 @@ public class WSFrameHandler implements WebSocketParser.FrameHandler {
                                         onTextMessage.onMessage(msg);
                                     }
                                 }
-                                else {
+                                else {  
                                     _textMessageTooLarge();
                                 }
                             }
@@ -164,14 +169,17 @@ public class WSFrameHandler implements WebSocketParser.FrameHandler {
                 }
 
                 case WebSocketConnectionRFC6455.OP_PING: {
-                    final Callback<byte[]> onPingMessage = _pintMessageCallback;
+                    final Callback<byte[]> onPingMessage = _pingMessageCallback;
                     if (onPingMessage != null) {
                         onPingMessage.onMessage(buffer.asArray());
                     }
                 } break;
 
                 case WebSocketConnectionRFC6455.OP_PONG: {
-                    // Nothing.
+                    final Callback<byte[]> onPongMessage = _pongMessageCallback;
+                    if (onPongMessage != null) {
+                        onPongMessage.onMessage(buffer.asArray());
+                    }
                 } break;
 
                 case WebSocketConnectionRFC6455.OP_CLOSE: {

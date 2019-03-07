@@ -60,4 +60,13 @@ class WebSocketWriter {
             _endPoint.shutdown();
         }
     }
+
+    public void writePing(final byte[] bytes) {
+        try {
+            _webSocketGeneratorRFC6455.addFrame((byte) WebSocketConnectionRFC6455.FLAG_FIN, WebSocketConnectionRFC6455.OP_PING, bytes, 0, bytes.length);
+        }
+        catch (final IOException exception) {
+            _endPoint.shutdown();
+        }
+    }
 }
