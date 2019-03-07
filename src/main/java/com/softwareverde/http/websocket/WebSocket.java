@@ -53,6 +53,7 @@ public class WebSocket implements AutoCloseable {
         final WebSocketBuffers webSocketBuffers = new WebSocketBuffers(_maxPacketByteCount);
 
         final SocketStreams socketStreams = new SocketStreams(_connectionLayer);
+        try { socketStreams.setMaxIdleTime(0); } catch (final Exception exception) { }
 
         _webSocketReader = new WebSocketReader(_mode, socketStreams, webSocketBuffers, new WebSocketReader.MessageReceivedCallback() {
             @Override
@@ -73,7 +74,9 @@ public class WebSocket implements AutoCloseable {
 
             @Override
             public void onPing(final byte[] message) {
-                _webSocketWriter.writePong(message);
+                synchronized (_webSocketWriter) {
+                    _webSocketWriter.writePong(message);
+                }
             }
 
             @Override
@@ -109,11 +112,15 @@ public class WebSocket implements AutoCloseable {
     }
 
     public void sendMessage(final String message) {
-        _webSocketWriter.writeMessage(message);
+        synchronized (_webSocketWriter) {
+            _webSocketWriter.writeMessage(message);
+        }
     }
 
     public void sendMessage(final byte[] bytes) {
-        _webSocketWriter.writeMessage(bytes);
+        synchronized (_webSocketWriter) {
+            _webSocketWriter.writeMessage(bytes);
+        }
     }
 
     public Integer getMaxPacketByteCount() {

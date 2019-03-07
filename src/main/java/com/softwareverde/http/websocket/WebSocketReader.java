@@ -82,9 +82,8 @@ class WebSocketReader {
                         if (readByteCount > 0) {
                             synchronized (_packetBuffer) {
                                 _packetBuffer.appendBytes(buffer, readByteCount);
+                                _webSocketParser.parseNext();
                             }
-
-                            _webSocketParser.parseNext();
                         }
                     }
                 }

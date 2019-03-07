@@ -185,6 +185,8 @@ class SocketStreams implements EndPoint {
         return Integer.MAX_VALUE;
     }
 
-    // @Override
-    // public void setMaxIdleTime(final int timeMs) { }
+    @Override
+    public void setMaxIdleTime(final int timeMs) throws IOException {
+        _socket.setSoTimeout((timeMs < 0 ? 0 : timeMs));
+    }
 }
