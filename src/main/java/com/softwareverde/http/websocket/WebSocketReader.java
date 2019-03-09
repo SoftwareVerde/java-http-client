@@ -68,15 +68,14 @@ class WebSocketReader {
         });
 
         _webSocketParser = new WebSocketParserRFC6455(webSocketBuffers, endPoint, frameHandler, (mode == WebSocket.Mode.SERVER));
-        _webSocketParser.setFakeFragments(false);
+        _webSocketParser.setFakeFragments(true);
 
         _readThread = new Thread(new Runnable() {
             @Override
             public void run() {
                 try {
-                    final byte[] buffer = new byte[_packetBuffer.getBufferSize()];
-
                     while (true) {
+                        final byte[] buffer = _packetBuffer.getRecycledBuffer();
                         final int readByteCount;
                         try {
                             readByteCount = inputStream.read(buffer);

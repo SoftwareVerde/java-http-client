@@ -1,10 +1,12 @@
 package com.softwareverde.http.websocket;
 
 import org.eclipse.jetty.websocket.WebSocketBuffers;
+import org.eclipse.jetty.websocket.WebSocketConnectionRFC6455;
 
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class WebSocket implements AutoCloseable {
     public enum Mode {
@@ -36,6 +38,44 @@ public class WebSocket implements AutoCloseable {
     protected MessageReceivedCallback _messageReceivedCallback;
     protected BinaryMessageReceivedCallback _binaryMessageReceivedCallback;
     protected ConnectionClosedCallback _connectionClosedCallback;
+
+    protected final AtomicBoolean _closedCallbackInvoked = new AtomicBoolean(false);
+
+    protected void _runOnSeparateThread(final Runnable runnable) {
+        (new Thread(runnable)).start();
+    }
+
+    protected void _close(final int code, final String message) {
+        try {
+            final InputStream inputStream = _connectionLayer.getInputStream();
+            inputStream.close();
+        }
+        catch (final Exception exception) { }
+
+        try {
+            final OutputStream outputStream = _connectionLayer.getOutputStream();
+            outputStream.close();
+        }
+        catch (final Exception exception) { }
+
+        try {
+            final Socket socket = _connectionLayer.getSocket();
+            socket.close();
+        }
+        catch (final Exception exception) { }
+
+        if (! _closedCallbackInvoked.getAndSet(true)) {
+            final ConnectionClosedCallback connectionClosedCallback = _connectionClosedCallback;
+            if (connectionClosedCallback != null) {
+                _runOnSeparateThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        connectionClosedCallback.onClose(code, message);
+                    }
+                });
+            }
+        }
+    }
 
     public WebSocket(final Long webSocketId, final Mode mode, final ConnectionLayer connectionLayer, final Integer maxPacketByteCount) {
         _webSocketId = webSocketId;
@@ -75,7 +115,12 @@ public class WebSocket implements AutoCloseable {
             @Override
             public void onPing(final byte[] message) {
                 synchronized (_webSocketWriter) {
-                    _webSocketWriter.writePong(message);
+                    try {
+                        _webSocketWriter.writePong(message);
+                    }
+                    catch (final Exception exception) {
+                        _close(WebSocketConnectionRFC6455.CLOSE_NO_CODE, "");
+                    }
                 }
             }
 
@@ -84,10 +129,7 @@ public class WebSocket implements AutoCloseable {
 
             @Override
             public void onClose(final int code, final String message) {
-                final ConnectionClosedCallback connectionClosedCallback = _connectionClosedCallback;
-                if (connectionClosedCallback != null) {
-                    connectionClosedCallback.onClose(code, message);
-                }
+                _close(code, message);
             }
         });
 
@@ -116,13 +158,23 @@ public class WebSocket implements AutoCloseable {
 
     public void sendMessage(final String message) {
         synchronized (_webSocketWriter) {
-            _webSocketWriter.writeMessage(message);
+            try {
+                _webSocketWriter.writeMessage(message);
+            }
+            catch (final Exception exception) {
+                _close(WebSocketConnectionRFC6455.CLOSE_NO_CODE, "");
+            }
         }
     }
 
     public void sendMessage(final byte[] bytes) {
         synchronized (_webSocketWriter) {
-            _webSocketWriter.writeMessage(bytes);
+            try {
+                _webSocketWriter.writeMessage(bytes);
+            }
+            catch (final Exception exception) {
+                _close(WebSocketConnectionRFC6455.CLOSE_NO_CODE, "");
+            }
         }
     }
 
@@ -136,22 +188,6 @@ public class WebSocket implements AutoCloseable {
 
     @Override
     public void close() {
-        try {
-            final InputStream inputStream = _connectionLayer.getInputStream();
-            inputStream.close();
-        }
-        catch (final Exception exception) { }
-
-        try {
-            final OutputStream outputStream = _connectionLayer.getOutputStream();
-            outputStream.close();
-        }
-        catch (final Exception exception) { }
-
-        try {
-            final Socket socket = _connectionLayer.getSocket();
-            socket.close();
-        }
-        catch (final Exception exception) { }
+        _close(WebSocketConnectionRFC6455.CLOSE_NO_CODE, "");
     }
 }

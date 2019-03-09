@@ -134,7 +134,7 @@ public class WSFrameHandler implements WebSocketParser.FrameHandler {
                                         onTextMessage.onMessage(msg);
                                     }
                                 }
-                                else {  
+                                else {
                                     _textMessageTooLarge();
                                 }
                             }

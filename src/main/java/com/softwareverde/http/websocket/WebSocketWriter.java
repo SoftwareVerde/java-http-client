@@ -33,40 +33,44 @@ class WebSocketWriter {
         _endPoint = endPoint;
     }
 
-    public void writeMessage(final String message) {
+    public void writeMessage(final String message) throws IOException {
         final byte[] bytes = StringUtil.getBytes(message);
         try {
             _webSocketGeneratorRFC6455.addFrame((byte) WebSocketConnectionRFC6455.FLAG_FIN, WebSocketConnectionRFC6455.OP_TEXT, bytes, 0, bytes.length);
         }
         catch (final IOException exception) {
             _endPoint.shutdown();
+            throw exception;
         }
     }
 
-    public void writeMessage(final byte[] bytes) {
+    public void writeMessage(final byte[] bytes) throws IOException {
         try {
             _webSocketGeneratorRFC6455.addFrame((byte) WebSocketConnectionRFC6455.FLAG_FIN, WebSocketConnectionRFC6455.OP_BINARY, bytes, 0, bytes.length);
         }
         catch (final IOException exception) {
             _endPoint.shutdown();
+            throw exception;
         }
     }
 
-    public void writePong(final byte[] bytes) {
+    public void writePong(final byte[] bytes) throws IOException {
         try {
             _webSocketGeneratorRFC6455.addFrame((byte) WebSocketConnectionRFC6455.FLAG_FIN, WebSocketConnectionRFC6455.OP_PONG, bytes, 0, bytes.length);
         }
         catch (final IOException exception) {
             _endPoint.shutdown();
+            throw exception;
         }
     }
 
-    public void writePing(final byte[] bytes) {
+    public void writePing(final byte[] bytes) throws IOException {
         try {
             _webSocketGeneratorRFC6455.addFrame((byte) WebSocketConnectionRFC6455.FLAG_FIN, WebSocketConnectionRFC6455.OP_PING, bytes, 0, bytes.length);
         }
         catch (final IOException exception) {
             _endPoint.shutdown();
+            throw exception;
         }
     }
 }
