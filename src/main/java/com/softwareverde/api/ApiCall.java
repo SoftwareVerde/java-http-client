@@ -5,12 +5,12 @@ import com.softwareverde.constable.bytearray.MutableByteArray;
 import com.softwareverde.http.HttpMethod;
 import com.softwareverde.http.HttpRequest;
 import com.softwareverde.http.HttpResponse;
+import com.softwareverde.logging.Logger;
+import com.softwareverde.logging.LoggerInstance;
 import com.softwareverde.util.Util;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public abstract class ApiCall<REQUEST extends ApiRequest, RESPONSE extends ApiResponse> {
-    private final Logger _logger = LoggerFactory.getLogger(ApiCall.class);
+    private final LoggerInstance _logger = Logger.getInstance(ApiCall.class);
 
     private final ApiConfiguration _configuration;
 
@@ -42,7 +42,7 @@ public abstract class ApiCall<REQUEST extends ApiRequest, RESPONSE extends ApiRe
             }
 
             final HttpResponse httpResponse = httpRequest.execute();
-            _logger.debug("%s%s", "Received ", httpResponse);
+            _logger.debug("Received " + (httpResponse != null ? httpResponse.getResponseCode() : null));
             return httpResponse;
         }
         finally {

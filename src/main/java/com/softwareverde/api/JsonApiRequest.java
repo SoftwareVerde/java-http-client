@@ -1,14 +1,13 @@
 package com.softwareverde.api;
 
 import com.softwareverde.json.Json;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.softwareverde.logging.Logger;
+import com.softwareverde.logging.LoggerInstance;
 
 import java.nio.charset.Charset;
 
 public abstract class JsonApiRequest extends ApiRequest {
-    private final Logger _logger = LoggerFactory.getLogger(getClass());
+    protected final LoggerInstance _logger = Logger.getInstance(JsonApiRequest.class);
 
     public JsonApiRequest() {
         // header added in constructor to allow for it to be overridden afterward if necessary
@@ -23,7 +22,7 @@ public abstract class JsonApiRequest extends ApiRequest {
         final String jsonString = jsonObject.toString();
         final byte[] jsonBytes = jsonString.getBytes(Charset.forName("UTF-8"));
 
-        _logger.debug("%s%s", "Json message: ", jsonString);
+        _logger.debug("Json message: " + jsonString);
 
         return jsonBytes;
     }
