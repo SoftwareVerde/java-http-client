@@ -74,8 +74,8 @@ class WebSocketReader {
             @Override
             public void run() {
                 try {
+                    byte[] buffer = _packetBuffer.getRecycledBuffer();
                     while (true) {
-                        final byte[] buffer = _packetBuffer.getRecycledBuffer();
                         final int readByteCount;
                         try {
                             readByteCount = inputStream.read(buffer);
@@ -90,6 +90,7 @@ class WebSocketReader {
                             synchronized (_packetBuffer) {
                                 _packetBuffer.appendBytes(buffer, readByteCount);
                                 _webSocketParser.parseNext();
+                                buffer = _packetBuffer.getRecycledBuffer();
                             }
                         }
                     }
