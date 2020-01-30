@@ -10,7 +10,7 @@ import com.softwareverde.logging.LoggerInstance;
 import com.softwareverde.util.Util;
 
 public abstract class ApiCall<REQUEST extends ApiRequest, RESPONSE extends ApiResponse> {
-    private final LoggerInstance _logger = Logger.getInstance(ApiCall.class);
+    private final LoggerInstance _logger = Logger.getInstance(getClass());
 
     private final ApiConfiguration _configuration;
 
@@ -24,31 +24,39 @@ public abstract class ApiCall<REQUEST extends ApiRequest, RESPONSE extends ApiRe
 
     public abstract RESPONSE call(final REQUEST request) throws Exception;
 
-    protected HttpResponse _call(final String requestPath, final HttpMethod requestMethod, final ApiRequest request) throws Exception {
+    protected HttpResponse _call(final String requestPath, final HttpMethod requestMethod, final REQUEST request) throws Exception {
         long startTime = System.currentTimeMillis();
-        String apiUrl = "";
+        final HttpRequest httpRequest;
         try {
-            apiUrl = _getConfiguration().getApiUrl();
+            final String baseUrl = _getConfiguration().getApiUrl();
+            final String fullUrl = baseUrl + Util.coalesce(requestPath);
 
             final ByteArray requestData = MutableByteArray.wrap(request.toBytes());
 
-            final HttpRequest httpRequest = new HttpRequest();
-            httpRequest.setUrl(apiUrl + Util.coalesce(requestPath));
+            httpRequest = new HttpRequest();
+            httpRequest.setUrl(fullUrl);
             httpRequest.setMethod(requestMethod);
             httpRequest.setRequestData(requestData);
             for (final String header : request.getHeaderNames()) {
                 final String value = request.getHeader(header);
                 httpRequest.setHeader(header, value);
             }
+        }
+        catch (final Exception exception) {
+            throw new RuntimeException("Unable to build HTTP request for " + request.getClass().getSimpleName(), exception);
+        }
 
-            final HttpResponse httpResponse = httpRequest.execute();
-            _logger.debug("Received " + (httpResponse != null ? httpResponse.getResponseCode() : null));
+        HttpResponse httpResponse = null;
+        try {
+            httpResponse = httpRequest.execute();
             return httpResponse;
         }
         finally {
-            long duration = System.currentTimeMillis() - startTime;
-            final String url = apiUrl + requestPath;
-            _logger.info("Processed " + requestMethod.name() + " request to " + url + " in " + duration + "ms.");
+            if (httpResponse != null) {
+                long duration = System.currentTimeMillis() - startTime;
+                final String httpResponseString = httpResponse.getResponseCode() + " " + httpResponse.getResponseMessage();
+                _logger.info(requestMethod.name() + " | " + httpRequest.getUrl() + " | " + httpResponseString + " | " + duration + " ms");
+            }
         }
     }
 
