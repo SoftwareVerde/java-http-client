@@ -4,7 +4,6 @@ import com.softwareverde.constable.bytearray.ByteArray;
 import com.softwareverde.constable.bytearray.MutableByteArray;
 import com.softwareverde.util.IoUtil;
 import com.softwareverde.util.ReflectionUtil;
-import com.softwareverde.util.Util;
 
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
@@ -123,8 +122,18 @@ class HttpRequestExecutionThread extends Thread {
 
             if (! upgradeToWebSocket) {
                 if (responseCode >= 400) {
-                    final InputStream errorStream = Util.coalesce(connection.getErrorStream(), connection.getInputStream());
-                    httpResponse._rawResult = MutableByteArray.wrap(IoUtil.readStream(errorStream));
+                    InputStream errorStream = null;
+                    try {
+                        try {
+                            errorStream = connection.getErrorStream();
+                        }
+                        catch (final Exception exception) {
+                            errorStream = connection.getInputStream();
+                        }
+                    }
+                    catch (final Exception exception) { }
+
+                    httpResponse._rawResult = ((errorStream != null) ? MutableByteArray.wrap(IoUtil.readStream(errorStream)) : null);
                 }
                 else {
                     httpResponse._rawResult = MutableByteArray.wrap(IoUtil.readStreamOrThrow(connection.getInputStream()));
