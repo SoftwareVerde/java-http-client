@@ -123,20 +123,24 @@ class HttpRequestExecutionThread extends Thread {
             if (! upgradeToWebSocket) {
                 if (responseCode >= 400) {
                     InputStream errorStream = null;
-                    try {
+                    { // Attempt to obtain the errorStream, but fallback to the inputStream if errorStream is unavailable.
                         try {
                             errorStream = connection.getErrorStream();
                         }
-                        catch (final Exception exception) {
-                            errorStream = connection.getInputStream();
+                        catch (final Exception exception) { }
+                        if (errorStream == null) {
+                            try {
+                                errorStream = connection.getInputStream();
+                            }
+                            catch (final Exception exception) { }
                         }
                     }
-                    catch (final Exception exception) { }
 
-                    httpResponse._rawResult = ((errorStream != null) ? MutableByteArray.wrap(IoUtil.readStream(errorStream)) : null);
+                    httpResponse._rawResult = ((errorStream != null) ? MutableByteArray.wrap(IoUtil.readStreamOrThrow(errorStream)) : null);
                 }
                 else {
-                    httpResponse._rawResult = MutableByteArray.wrap(IoUtil.readStreamOrThrow(connection.getInputStream()));
+                    final InputStream inputStream = connection.getInputStream();
+                    httpResponse._rawResult = ((inputStream != null) ? MutableByteArray.wrap(IoUtil.readStreamOrThrow(inputStream)) : null);
                 }
 
                 // Close Connection
