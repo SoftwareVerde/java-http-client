@@ -121,7 +121,7 @@ class HttpRequestExecutionThread extends Thread {
 
             if (! upgradeToWebSocket) {
                 if (responseCode >= 400) {
-                    httpResponse._rawResult = MutableByteArray.wrap(IoUtil.readStreamOrThrow(connection.getErrorStream()));
+                    httpResponse._rawResult = MutableByteArray.wrap(IoUtil.readStream(connection.getErrorStream()));
                 }
                 else {
                     httpResponse._rawResult = MutableByteArray.wrap(IoUtil.readStreamOrThrow(connection.getInputStream()));
