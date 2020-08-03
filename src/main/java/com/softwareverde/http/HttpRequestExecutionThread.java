@@ -4,6 +4,8 @@ import com.softwareverde.constable.bytearray.ByteArray;
 import com.softwareverde.constable.bytearray.MutableByteArray;
 import com.softwareverde.util.IoUtil;
 import com.softwareverde.util.ReflectionUtil;
+import com.softwareverde.util.StringUtil;
+import com.softwareverde.util.Util;
 
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
@@ -33,8 +35,17 @@ class HttpRequestExecutionThread extends Thread {
 
     public void run() {
         try {
-            final String urlString = _httpRequestUrl;
-            final URL url = new URL((urlString) + (urlString.contains("?") ? "" : "?") + _httpRequest._queryString);
+            final String urlString;
+            {
+                final String queryString = _httpRequest._queryString;
+                if (! Util.isBlank(queryString)) {
+                    urlString = (_httpRequestUrl + (_httpRequestUrl.contains("?") ? "" : "?") + queryString);
+                }
+                else {
+                    urlString = _httpRequestUrl;
+                }
+            }
+            final URL url = new URL(urlString);
 
             final HttpURLConnection connection = (HttpURLConnection) (url.openConnection());
 
