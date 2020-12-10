@@ -2,9 +2,9 @@ package com.softwareverde.http;
 
 import com.softwareverde.constable.bytearray.ByteArray;
 import com.softwareverde.constable.bytearray.MutableByteArray;
+import com.softwareverde.logging.Logger;
 import com.softwareverde.util.IoUtil;
 import com.softwareverde.util.ReflectionUtil;
-import com.softwareverde.util.StringUtil;
 import com.softwareverde.util.Util;
 
 import javax.net.ssl.HttpsURLConnection;
@@ -166,8 +166,7 @@ class HttpRequestExecutionThread extends Thread {
                     httpResponse._webSocket = webSocketFactory.newWebSocket(socket);
                 }
                 catch (final Exception exception) {
-                    System.out.println("NOTICE: Unable to get underlying socket for WebSocket within HttpRequest.");
-                    exception.printStackTrace();
+                    Logger.warn("Unable to get underlying socket for WebSocket within HttpRequest via reflection.", exception);
                     connection.disconnect();
                 }
             }
@@ -177,7 +176,7 @@ class HttpRequestExecutionThread extends Thread {
             }
         }
         catch (final Exception exception) {
-            exception.printStackTrace();
+            Logger.debug("Unable to execute request.", exception);
 
             if (_callback != null) {
                 _callback.run(null);

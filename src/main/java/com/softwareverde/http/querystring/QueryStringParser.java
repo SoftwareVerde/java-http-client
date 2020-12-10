@@ -1,6 +1,7 @@
 package com.softwareverde.http.querystring;
 
 import com.softwareverde.constable.bytearray.MutableByteArray;
+import com.softwareverde.logging.Logger;
 import com.softwareverde.util.StringUtil;
 import com.softwareverde.util.Util;
 
@@ -42,7 +43,7 @@ public class QueryStringParser<T extends QueryString> {
             }
         }
         catch (final Exception exception) {
-            exception.printStackTrace();
+            Logger.debug("Error building query string.", exception);
         }
         return stringBuilder.toString();
     }
