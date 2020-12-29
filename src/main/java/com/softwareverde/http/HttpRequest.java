@@ -13,7 +13,11 @@ import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.X509ExtendedTrustManager;
 import java.net.Socket;
-import java.util.*;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class HttpRequest {
@@ -89,6 +93,8 @@ public class HttpRequest {
 
     protected Boolean _allowWebSocketUpgrade = false;
     protected WebSocketFactory _webSocketFactory = new DefaultWebSocketFactory();
+
+    protected HttpRequestExecutionThread _executionThread;
 
     public HttpRequest() { }
 
@@ -180,20 +186,36 @@ public class HttpRequest {
     public HttpResponse execute() {
         final Container<HttpResponse> responseContainer = new Container<HttpResponse>(null);
 
-        final HttpRequestExecutionThread executionThread = new HttpRequestExecutionThread(_url, this, new Callback() {
+        _executionThread = new HttpRequestExecutionThread(_url, this, new Callback() {
             @Override
             public void run(final HttpResponse response) {
                 responseContainer.value = response;
+
+                _executionThread = null;
             }
         }, 0);
-        executionThread.run();
+        _executionThread.run();
 
         return responseContainer.value;
     }
 
     public void execute(final Callback callback) {
-        final HttpRequestExecutionThread executionThread = new HttpRequestExecutionThread(_url, this, callback, 0);
-        executionThread.start();
+        _executionThread = new HttpRequestExecutionThread(_url, this, callback, 0);
+        _executionThread.start();
+    }
+
+    public void cancel() {
+        final HttpRequestExecutionThread executionThread = _executionThread;
+        if (executionThread != null) {
+            executionThread.cancel();
+        }
+    }
+
+    public boolean isExecuting() {
+        final HttpRequestExecutionThread executionThread = _executionThread;
+        if (executionThread == null) { return false; }
+
+        return executionThread.isExecuting();
     }
 
     @SuppressWarnings("unused")

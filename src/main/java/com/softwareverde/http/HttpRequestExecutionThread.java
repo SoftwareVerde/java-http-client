@@ -25,6 +25,7 @@ class HttpRequestExecutionThread extends Thread {
     protected HttpRequest _httpRequest;
     protected HttpRequest.Callback _callback;
     protected final Integer _redirectCount;
+    protected HttpURLConnection _connection;
 
     public HttpRequestExecutionThread(final String httpRequestUrl, final HttpRequest httpRequest, final HttpRequest.Callback callback, final Integer redirectCount) {
         _httpRequestUrl = httpRequestUrl;
@@ -47,10 +48,10 @@ class HttpRequestExecutionThread extends Thread {
             }
             final URL url = new URL(urlString);
 
-            final HttpURLConnection connection = (HttpURLConnection) (url.openConnection());
+            _connection = (HttpURLConnection) (url.openConnection());
 
-            if (connection instanceof HttpsURLConnection) {
-                final HttpsURLConnection httpsConnection = (HttpsURLConnection) connection;
+            if (_connection instanceof HttpsURLConnection) {
+                final HttpsURLConnection httpsConnection = ((HttpsURLConnection) _connection);
 
                 if (! _httpRequest.validatesSslCertificates()) {
                     httpsConnection.setHostnameVerifier(HttpRequest.NAIVE_HOSTNAME_VERIFIER);
@@ -63,9 +64,9 @@ class HttpRequestExecutionThread extends Thread {
             }
 
             final Boolean followsRedirects = _httpRequest.followsRedirects();
-            connection.setInstanceFollowRedirects(followsRedirects);
-            connection.setDoInput(true);
-            connection.setUseCaches(false);
+            _connection.setInstanceFollowRedirects(followsRedirects);
+            _connection.setDoInput(true);
+            _connection.setUseCaches(false);
             final StringBuilder cookies = new StringBuilder();
             {
                 final List<String> httpRequestCookies = _httpRequest._cookies;
@@ -76,38 +77,38 @@ class HttpRequestExecutionThread extends Thread {
                     separator = "; ";
                 }
             }
-            connection.setRequestProperty("Cookie", cookies.toString());
+            _connection.setRequestProperty("Cookie", cookies.toString());
 
             final Map<String, String> httpRequestHeaders = _httpRequest._headers;
             for (final String key : httpRequestHeaders.keySet()) {
                 final String value = httpRequestHeaders.get(key);
-                connection.setRequestProperty(key, value);
+                _connection.setRequestProperty(key, value);
             }
 
             final HttpMethod httpMethod = _httpRequest.getMethod();
-            connection.setRequestMethod(httpMethod.name());
+            _connection.setRequestMethod(httpMethod.name());
 
             if ((httpMethod == HttpMethod.POST) || (httpMethod == HttpMethod.PUT) || (httpMethod == HttpMethod.PATCH)) {
                 final ByteArray postData = _httpRequest._postData;
                 if (postData != null) {
-                    connection.setDoOutput(true);
+                    _connection.setDoOutput(true);
 
-                    try (final DataOutputStream out = new DataOutputStream(connection.getOutputStream())) {
+                    try (final DataOutputStream out = new DataOutputStream(_connection.getOutputStream())) {
                         out.write(postData.getBytes());
                         out.flush();
                     }
                 }
             }
 
-            connection.connect();
+            _connection.connect();
 
             final HttpResponse httpResponse = new HttpResponse();
 
-            final int responseCode = connection.getResponseCode();
+            final int responseCode = _connection.getResponseCode();
             httpResponse._responseCode = responseCode;
-            httpResponse._responseMessage = connection.getResponseMessage();
+            httpResponse._responseMessage = _connection.getResponseMessage();
 
-            final Map<String, List<String>> responseHeaders = connection.getHeaderFields();
+            final Map<String, List<String>> responseHeaders = _connection.getHeaderFields();
             httpResponse._headers = responseHeaders;
 
             // HttpURLConnection will not handle redirection from http to https, so it is is handled here...
@@ -119,8 +120,7 @@ class HttpRequestExecutionThread extends Thread {
                         final boolean isHttpBase = ( (_httpRequestUrl.startsWith("http") && (newLocation.startsWith("http"))) );
                         final boolean isHttpDowngrade = ( (_httpRequestUrl.startsWith("https")) && (! newLocation.startsWith("https")) );
                         if ( (isHttpBase) && (! isHttpDowngrade) ) {
-                            connection.disconnect();
-                            System.out.println(newLocation);
+                            _connection.disconnect();
 
                             (new HttpRequestExecutionThread(newLocation, _httpRequest, _callback, (_redirectCount + 1))).run();
                             return;
@@ -136,12 +136,12 @@ class HttpRequestExecutionThread extends Thread {
                     InputStream errorStream = null;
                     { // Attempt to obtain the errorStream, but fallback to the inputStream if errorStream is unavailable.
                         try {
-                            errorStream = connection.getErrorStream();
+                            errorStream = _connection.getErrorStream();
                         }
                         catch (final Exception exception) { }
                         if (errorStream == null) {
                             try {
-                                errorStream = connection.getInputStream();
+                                errorStream = _connection.getInputStream();
                             }
                             catch (final Exception exception) { }
                         }
@@ -150,27 +150,28 @@ class HttpRequestExecutionThread extends Thread {
                     httpResponse._rawResult = ((errorStream != null) ? MutableByteArray.wrap(IoUtil.readStreamOrThrow(errorStream)) : null);
                 }
                 else {
-                    final InputStream inputStream = connection.getInputStream();
+                    final InputStream inputStream = _connection.getInputStream();
                     httpResponse._rawResult = ((inputStream != null) ? MutableByteArray.wrap(IoUtil.readStreamOrThrow(inputStream)) : null);
                 }
 
                 // Close Connection
-                connection.disconnect();
+                _connection.disconnect();
             }
             else {
                 try {
                     final HttpRequest.WebSocketFactory webSocketFactory = _httpRequest._webSocketFactory;
-                    final Object httpConnectionHolder = ((connection instanceof HttpsURLConnection) ? ReflectionUtil.getValue(connection, "delegate") : connection);
+                    final Object httpConnectionHolder = ((_connection instanceof HttpsURLConnection) ? ReflectionUtil.getValue(_connection, "delegate") : _connection);
                     final Object httpClient = ReflectionUtil.getValue(httpConnectionHolder, "http");
                     final Socket socket = ReflectionUtil.getValue(httpClient, "serverSocket");
                     httpResponse._webSocket = webSocketFactory.newWebSocket(socket);
                 }
                 catch (final Exception exception) {
                     Logger.warn("Unable to get underlying socket for WebSocket within HttpRequest via reflection.", exception);
-                    connection.disconnect();
+                    _connection.disconnect();
                 }
             }
 
+            _connection = null;
             if (_callback != null) {
                 _callback.run(httpResponse);
             }
@@ -178,9 +179,24 @@ class HttpRequestExecutionThread extends Thread {
         catch (final Exception exception) {
             Logger.debug("Unable to execute request.", exception);
 
+            _connection = null;
             if (_callback != null) {
                 _callback.run(null);
             }
         }
+        finally {
+            _connection = null;
+        }
+    }
+
+    public void cancel() {
+        final HttpURLConnection connection = _connection;
+        if (connection == null) { return; }
+
+        connection.disconnect();
+    }
+
+    public boolean isExecuting() {
+        return (_connection != null);
     }
 }

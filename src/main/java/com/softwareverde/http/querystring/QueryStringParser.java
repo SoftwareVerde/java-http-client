@@ -1,8 +1,6 @@
 package com.softwareverde.http.querystring;
 
-import com.softwareverde.constable.bytearray.MutableByteArray;
 import com.softwareverde.logging.Logger;
-import com.softwareverde.util.StringUtil;
 import com.softwareverde.util.Util;
 
 import java.io.UnsupportedEncodingException;

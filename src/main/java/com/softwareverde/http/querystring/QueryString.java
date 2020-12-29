@@ -1,6 +1,10 @@
 package com.softwareverde.http.querystring;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 public class QueryString {
     private Map<String, QueryStringParameter> _values = new HashMap<String, QueryStringParameter>();
