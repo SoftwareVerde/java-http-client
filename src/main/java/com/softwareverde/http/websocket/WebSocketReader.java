@@ -74,16 +74,17 @@ class WebSocketReader {
             @Override
             public void run() {
                 try {
-                    byte[] buffer = _packetBuffer.getRecycledBuffer();
+                    byte[] buffer;
+                    synchronized (_packetBuffer) {
+                        buffer = _packetBuffer.getRecycledBuffer();
+                    }
+
                     while (true) {
                         final int readByteCount;
                         try {
                             readByteCount = inputStream.read(buffer);
                         }
-                        catch (final SocketTimeoutException socketTimeoutException) {
-                            try { Thread.sleep(150L); } catch (final Exception exception) { }
-                            continue;
-                        }
+                        catch (final SocketTimeoutException socketTimeoutException) { continue; }
                         if (_readThread.isInterrupted()) { break; }
 
                         if (readByteCount > 0) {
