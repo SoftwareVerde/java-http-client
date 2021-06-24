@@ -17,7 +17,9 @@
 //
 // Modifications:
 //  2019 - Software Verde, LLC
-//      Removed all unused methods.
+//      Removed unused methods.
+//  2020 - Software Verde, LLC
+//      Removed unused methods.
 //
 
 package org.eclipse.jetty.io;
@@ -62,30 +64,6 @@ public interface EndPoint
     int flush(Buffer buffer) throws IOException;
 
     /* ------------------------------------------------------------ */
-    public boolean isBlocking();
-
-    /* ------------------------------------------------------------ */
-    public boolean blockWritable(long millisecs) throws IOException;
-
-    /* ------------------------------------------------------------ */
     public boolean isOpen();
-
-    /* ------------------------------------------------------------ */
-    /** Get the max idle time in ms.
-     * <p>The max idle time is the time the endpoint can be idle before
-     * extraordinary handling takes place.  This loosely corresponds to
-     * the {@link java.net.Socket#getSoTimeout()} for blocking connections,
-     * but {@link AsyncEndPoint} implementations must use other mechanisms
-     * to implement the max idle time.
-     * @return the max idle time in ms or if ms <= 0 implies an infinite timeout
-     */
-    public int getMaxIdleTime();
-
-    /* ------------------------------------------------------------ */
-    /** Set the max idle time.
-     * @param timeMs the max idle time in MS. Timeout <= 0 implies an infinite timeout
-     * @throws IOException if the timeout cannot be set.
-     */
-    public void setMaxIdleTime(int timeMs) throws IOException;
 
 }

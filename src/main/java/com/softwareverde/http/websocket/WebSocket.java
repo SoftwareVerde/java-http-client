@@ -155,6 +155,16 @@ public class WebSocket implements AutoCloseable {
         return _webSocketId;
     }
 
+    public void setSocketTimeout(final Integer socketTimeoutMs) {
+        final Socket socket = _connectionLayer.getSocket();
+        try {
+            socket.setSoTimeout(socketTimeoutMs);
+        }
+        catch (final Exception exception) {
+            // Nothing.
+        }
+    }
+
     public void startListening() {
         try { // Disable SO_TIMEOUT to remove read-lag since reads are not being ignored.
             final Socket socket = _connectionLayer.getSocket();
@@ -165,7 +175,9 @@ public class WebSocket implements AutoCloseable {
                 socket.setSoTimeout(0);
             }
         }
-        catch (final Exception exception) { }
+        catch (final Exception exception) {
+            // Nothing.
+        }
 
         _webSocketReader.start();
     }

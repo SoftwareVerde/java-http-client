@@ -64,25 +64,10 @@ class SocketStreams implements EndPoint {
         _shutdown();
     }
 
-    // @Override
-    // public boolean isOutputShutdown() {
-    //     return _isShutdown.get();
-    // }
-
-    // @Override
-    // public void shutdownInput() throws IOException {
-    //     _shutdown();
-    // }
-
     @Override
     public boolean isInputShutdown() {
         return _isShutdown.get();
     }
-
-    // @Override
-    // public void close() throws IOException {
-    //     _shutdown();
-    // }
 
     @Override
     public int fill(final Buffer buffer) {
@@ -115,78 +100,8 @@ class SocketStreams implements EndPoint {
         }
     }
 
-    // @Override
-    // public int flush(final Buffer header, final Buffer buffer, final Buffer trailer) throws IOException {
-    //     return (this.flush(header) + this.flush(buffer) + this.flush(trailer));
-    // }
-
-    // @Override
-    // public String getLocalAddr() {
-    //     return _socket.getLocalAddress().getHostAddress();
-    // }
-
-    // @Override
-    // public String getLocalHost() {
-    //     return _socket.getLocalAddress().getHostName();
-    // }
-
-    // @Override
-    // public int getLocalPort() {
-    //     return _socket.getLocalPort();
-    // }
-
-    // @Override
-    // public String getRemoteAddr() {
-    //     return _socket.getInetAddress().getHostAddress();
-    // }
-
-    // @Override
-    // public String getRemoteHost() {
-    //     return _socket.getInetAddress().getHostName();
-    // }
-
-    // @Override
-    // public int getRemotePort() {
-    //     return _socket.getPort();
-    // }
-
-    @Override
-    public boolean isBlocking() {
-        return true;
-    }
-
-    // @Override
-    // public boolean blockReadable(final long millisecs) {
-    //     return true;
-    // }
-
-    @Override
-    public boolean blockWritable(final long millisecs) {
-        return true;
-    }
-
     @Override
     public boolean isOpen() {
         return (! _isShutdown.get());
-    }
-
-    // @Override
-    // public Object getTransport() {
-    //     return null;
-    // }
-
-    // @Override
-    // public void flush() throws IOException {
-    //     _outputStream.flush();
-    // }
-
-    @Override
-    public int getMaxIdleTime() {
-        return Integer.MAX_VALUE;
-    }
-
-    @Override
-    public void setMaxIdleTime(final int timeMs) throws IOException {
-        _socket.setSoTimeout((timeMs < 0 ? 0 : timeMs));
     }
 }

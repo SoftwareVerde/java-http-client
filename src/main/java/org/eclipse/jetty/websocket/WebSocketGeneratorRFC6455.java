@@ -15,6 +15,9 @@
 //  You may elect to redistribute this code under either of these licenses.
 //  ========================================================================
 //
+//  2020 - Software Verde, LLC
+//      FIX: pending reads no longer block socket writes.
+//
 
 package org.eclipse.jetty.websocket;
 
@@ -239,21 +242,9 @@ public class WebSocketGeneratorRFC6455 implements WebSocketGenerator
                 return 0;
 
             int result = flushBuffer();
-            if (!_endp.isBlocking())
             {
-                long now = System.currentTimeMillis();
-                long end = now + _endp.getMaxIdleTime();
                 while (_buffer.length() > 0)
                 {
-                    boolean ready = _endp.blockWritable(end - now);
-                    if (!ready)
-                    {
-                        now = System.currentTimeMillis();
-                        if (now < end)
-                            continue;
-                        throw new IOException("Write timeout");
-                    }
-
                     result += flushBuffer();
                 }
             }
