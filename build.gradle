@@ -14,7 +14,7 @@ repositories {
 dependencies {
     api                 group: 'com.github.softwareverde',   name: 'json',           version: 'v2.0.0'
     implementation      group: 'com.github.softwareverde',   name: 'java-logging',   version: 'v2.2.0'
-    implementation      group: 'com.github.softwareverde',   name: 'java-util',      version: 'v2.7.1'
+    implementation      group: 'com.github.softwareverde',   name: 'java-util',      version: 'v2.7.3'
 
     testImplementation  group: 'junit', name: 'junit', version: '4.12'
 }

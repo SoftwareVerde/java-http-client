@@ -38,14 +38,21 @@ class HttpRequestExecutionThread extends Thread {
         try {
             final String urlString;
             {
+                final boolean isWebSocketRequest = _httpRequestUrl.startsWith("ws://") || _httpRequestUrl.startsWith("wss://");
+                String requestUrl = _httpRequestUrl;
+                if (isWebSocketRequest) {
+                    requestUrl = requestUrl.replaceFirst("ws", "http");
+                    _configureRequestForWebSocketUpgrade();
+                }
                 final String queryString = _httpRequest._queryString;
                 if (! Util.isBlank(queryString)) {
-                    urlString = (_httpRequestUrl + (_httpRequestUrl.contains("?") ? "" : "?") + queryString);
+                    urlString = (requestUrl + (requestUrl.contains("?") ? "" : "?") + queryString);
                 }
                 else {
-                    urlString = _httpRequestUrl;
+                    urlString = requestUrl;
                 }
             }
+
             final URL url = new URL(urlString);
 
             _connection = (HttpURLConnection) (url.openConnection());
@@ -159,10 +166,8 @@ class HttpRequestExecutionThread extends Thread {
             }
             else {
                 try {
+                    final Socket socket = _extractConnectionSocket();
                     final HttpRequest.WebSocketFactory webSocketFactory = _httpRequest._webSocketFactory;
-                    final Object httpConnectionHolder = ((_connection instanceof HttpsURLConnection) ? ReflectionUtil.getValue(_connection, "delegate") : _connection);
-                    final Object httpClient = ReflectionUtil.getValue(httpConnectionHolder, "http");
-                    final Socket socket = ReflectionUtil.getValue(httpClient, "serverSocket");
                     httpResponse._webSocket = webSocketFactory.newWebSocket(socket);
                 }
                 catch (final Exception exception) {
@@ -187,6 +192,37 @@ class HttpRequestExecutionThread extends Thread {
         finally {
             _connection = null;
         }
+    }
+
+    private Socket _extractConnectionSocket() {
+        Object httpConnectionHolder = null;
+        try {
+            httpConnectionHolder = ((_connection instanceof HttpsURLConnection) ? ReflectionUtil.getValue(_connection, "delegate") : _connection);
+            final Object httpClient = ReflectionUtil.getValue(httpConnectionHolder, "http");
+            return ReflectionUtil.getValue(httpClient, "serverSocket");
+        }
+        catch (final Exception exception1) {
+            if (httpConnectionHolder == null) {
+                throw new RuntimeException("Unable to obtain connection socket via reflection", exception1);
+            }
+            try {
+                // unable to get standard http server socket, check for OkHttp implementation
+                final Object httpEngine = ReflectionUtil.getValue(httpConnectionHolder, "httpEngine");
+                final Object streamAllocation = ReflectionUtil.getValue(httpEngine, "streamAllocation");
+                final Object realConnection = ReflectionUtil.getValue(streamAllocation, "connection");
+                return (Socket) ReflectionUtil.getValue(realConnection, "socket");
+            }
+            catch (final Exception exception2) {
+                Logger.debug("Unable to get connection socket (1/2)", exception1);
+                Logger.debug("Unable to get connection socket (2/2)", exception2);
+                throw new RuntimeException("Unable to obtain connection socket via reflection");
+            }
+        }
+    }
+
+    private void _configureRequestForWebSocketUpgrade() {
+        _httpRequest.setAllowWebSocketUpgrade(true);
+        _httpRequest.setHeader("Upgrade", "websocket");
     }
 
     public void cancel() {
