@@ -9,6 +9,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 class SocketStreams implements EndPoint {
     protected final AtomicBoolean _isShutdown = new AtomicBoolean(false);
@@ -17,6 +18,8 @@ class SocketStreams implements EndPoint {
     protected final Socket _socket;
     protected final InputStream _inputStream;
     protected final OutputStream _outputStream;
+
+    protected final AtomicInteger _queuedWriteByteCount = new AtomicInteger(0);
 
     protected void _shutdown() {
         _isShutdown.set(true);
@@ -86,8 +89,10 @@ class SocketStreams implements EndPoint {
 
     @Override
     public int flush(final Buffer buffer) throws IOException {
+        final byte[] bytes = buffer.asArray();
+        _queuedWriteByteCount.addAndGet(bytes.length);
+
         try {
-            final byte[] bytes = buffer.asArray();
             if (bytes.length > 0) {
                 _outputStream.write(bytes);
                 buffer.clear();
@@ -98,6 +103,13 @@ class SocketStreams implements EndPoint {
             _shutdown();
             throw exception;
         }
+        finally {
+            _queuedWriteByteCount.addAndGet(-bytes.length);
+        }
+    }
+
+    public Integer getQueuedWriteByteCount() {
+        return _queuedWriteByteCount.get();
     }
 
     @Override

@@ -80,7 +80,12 @@ class WebSocketReader {
                     }
 
                     while (true) {
+                        do {
+                            Thread.sleep(100); // Prioritize writes since reading will block writes...
+                        } while ( (endPoint.getQueuedWriteByteCount() > 0) && (inputStream.available() < 1) );
+
                         final int readByteCount;
+                        if (endPoint.isInputShutdown()) { break; }
                         try {
                             readByteCount = inputStream.read(buffer);
                         }

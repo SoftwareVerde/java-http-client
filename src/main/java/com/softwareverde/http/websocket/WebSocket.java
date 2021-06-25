@@ -1,6 +1,5 @@
 package com.softwareverde.http.websocket;
 
-import com.softwareverde.util.Util;
 import org.eclipse.jetty.websocket.WebSocketBuffers;
 import org.eclipse.jetty.websocket.WebSocketConnectionRFC6455;
 
@@ -28,7 +27,7 @@ public class WebSocket implements AutoCloseable {
         void onClose(int code, String message);
     }
 
-    protected static final Integer IGNORE_READS_SO_TIMEOUT = 100;
+    protected static final Integer DEFAULT_SO_TIMEOUT = 100;
 
     protected final Long _webSocketId;
     protected final Mode _mode;
@@ -89,7 +88,7 @@ public class WebSocket implements AutoCloseable {
         try {
             // Setting the Socket Timeout prevents writes from being blocked by unprocessed reads.
             final Socket socket = connectionLayer.getSocket();
-            socket.setSoTimeout(IGNORE_READS_SO_TIMEOUT);
+            socket.setSoTimeout(DEFAULT_SO_TIMEOUT);
         }
         catch (final Exception exception) { }
 
@@ -166,19 +165,6 @@ public class WebSocket implements AutoCloseable {
     }
 
     public void startListening() {
-        try { // Disable SO_TIMEOUT to remove read-lag since reads are not being ignored.
-            final Socket socket = _connectionLayer.getSocket();
-
-            final int soTimeout = socket.getSoTimeout();
-            final boolean soTimeoutWasChanged = (! Util.areEqual(IGNORE_READS_SO_TIMEOUT, soTimeout));
-            if (! soTimeoutWasChanged) {
-                socket.setSoTimeout(0);
-            }
-        }
-        catch (final Exception exception) {
-            // Nothing.
-        }
-
         _webSocketReader.start();
     }
 
