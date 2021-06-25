@@ -2,8 +2,11 @@ package com.softwareverde.http;
 
 import com.softwareverde.constable.bytearray.ByteArray;
 import com.softwareverde.constable.bytearray.MutableByteArray;
+import com.softwareverde.cryptography.util.HashUtil;
 import com.softwareverde.http.websocket.ConnectionLayer;
 import com.softwareverde.http.websocket.WebSocket;
+import com.softwareverde.logging.Logger;
+import com.softwareverde.util.Base64Util;
 import com.softwareverde.util.Container;
 import com.softwareverde.util.StringUtil;
 import com.softwareverde.util.Util;
@@ -21,6 +24,13 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class HttpRequest {
+    static {
+        // Allow for HttpUrlConnection to set non-trivial headers (required for WebSockets).
+        System.setProperty("sun.net.http.allowRestrictedHeaders", "true");
+    }
+
+    public static final String SEC_WEB_SOCKET_KEY = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+
     public interface Callback {
         void run(HttpResponse response);
     }
@@ -74,8 +84,28 @@ public class HttpRequest {
         return null;
     }
 
-    public static boolean containsUpgradeToWebSocketHeader(final Map<String, List<String>> headers) {
-        return containsHeaderValue("upgrade", "websocket", headers);
+    protected static String calculateSecWebSocketAcceptKey(final String wssKey) {
+        // https://en.wikipedia.org/wiki/WebSocket#Protocol_handshake
+        final byte[] preImage = StringUtil.stringToBytes(Util.coalesce(wssKey) + HttpRequest.SEC_WEB_SOCKET_KEY);
+        final byte[] acceptKey = HashUtil.sha1(preImage);
+        return Base64Util.toBase64String(acceptKey);
+    }
+
+    public static boolean containsUpgradeToWebSocketHeader(final Map<String, List<String>> headers, final String wssKey) {
+        if (HttpRequest.containsHeaderValue("upgrade", "websocket", headers)) { return true; }
+        final String returnedWssKeyString = HttpRequest.getHeaderValue("sec-websocket-accept", headers);
+        if ( (wssKey != null) && (returnedWssKeyString == null) ) { return false; }
+        if (returnedWssKeyString != null) {
+            if (wssKey == null) { return true; }
+
+            final String expectedWebSocketAcceptKey = HttpRequest.calculateSecWebSocketAcceptKey(wssKey);
+            final Boolean keysAreEqual = Util.areEqual(expectedWebSocketAcceptKey, returnedWssKeyString);
+            if (! keysAreEqual) {
+                Logger.debug("sec-websocket-accept: " + expectedWebSocketAcceptKey + " != " + returnedWssKeyString);
+            }
+            return keysAreEqual;
+        }
+        return false;
     }
 
     protected String _url;

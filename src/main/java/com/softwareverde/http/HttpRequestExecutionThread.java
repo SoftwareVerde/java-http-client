@@ -3,6 +3,7 @@ package com.softwareverde.http;
 import com.softwareverde.constable.bytearray.ByteArray;
 import com.softwareverde.constable.bytearray.MutableByteArray;
 import com.softwareverde.logging.Logger;
+import com.softwareverde.util.Base64Util;
 import com.softwareverde.util.IoUtil;
 import com.softwareverde.util.ReflectionUtil;
 import com.softwareverde.util.Util;
@@ -26,6 +27,7 @@ class HttpRequestExecutionThread extends Thread {
     protected HttpRequest.Callback _callback;
     protected final Integer _redirectCount;
     protected HttpURLConnection _connection;
+    protected String _origin = null;
 
     protected Socket _extractConnectionSocket() {
         Object httpConnectionHolder = null;
@@ -34,28 +36,53 @@ class HttpRequestExecutionThread extends Thread {
             final Object httpClient = ReflectionUtil.getValue(httpConnectionHolder, "http");
             return ReflectionUtil.getValue(httpClient, "serverSocket");
         }
-        catch (final Exception exception1) {
+        catch (final Exception exception) {
             if (httpConnectionHolder == null) {
-                throw new RuntimeException("Unable to obtain connection socket via reflection", exception1);
+                throw new RuntimeException("Unable to obtain connection socket via reflection.", exception);
             }
+
             try {
-                // unable to get standard http server socket, check for OkHttp implementation
+                // Unable to get standard http server socket, check for OkHttp implementation.
                 final Object httpEngine = ReflectionUtil.getValue(httpConnectionHolder, "httpEngine");
                 final Object streamAllocation = ReflectionUtil.getValue(httpEngine, "streamAllocation");
                 final Object realConnection = ReflectionUtil.getValue(streamAllocation, "connection");
-                return (Socket) ReflectionUtil.getValue(realConnection, "socket");
+                return ReflectionUtil.getValue(realConnection, "socket");
             }
             catch (final Exception exception2) {
-                Logger.debug("Unable to get connection socket (1/2)", exception1);
-                Logger.debug("Unable to get connection socket (2/2)", exception2);
-                throw new RuntimeException("Unable to obtain connection socket via reflection");
+                exception2.addSuppressed(exception);
+                throw new RuntimeException("Unable to obtain connection socket via reflection.", exception2);
             }
         }
     }
 
-    protected void _configureRequestForWebSocketUpgrade() {
+    protected String _configureRequestForWebSocketUpgrade(final Boolean isSecureWebSocket) {
+        final SecureRandom secureRandom = new SecureRandom();
+        final byte[] key = new byte[16];
+        secureRandom.nextBytes(key);
+
         _httpRequest.setAllowWebSocketUpgrade(true);
         _httpRequest.setHeader("Upgrade", "websocket");
+        _httpRequest.setHeader("Connection", "upgrade");
+
+        if (isSecureWebSocket) {
+            final String wssKey = Base64Util.toBase64String(key);
+            _httpRequest.setHeader("Sec-WebSocket-Version", "13");
+            _httpRequest.setHeader("Sec-WebSocket-Key", wssKey);
+            _httpRequest.setHeader("Sec-WebSocket-Extensions", "permessage-deflate; client_max_window_bits");
+            return wssKey;
+        }
+
+        return null;
+    }
+
+    protected ByteArray _readErrorStream(final InputStream inputStream) throws Exception {
+        if (inputStream == null) { return null; }
+
+        // Only attempt to read from the stream if bytes are immediately available without blocking...
+        // The inputStream type is HttpInputStream which appears to honor InputStream::available().
+        if (inputStream.available() < 1) { return null; }
+
+        return MutableByteArray.wrap(IoUtil.readStreamOrThrow(inputStream));
     }
 
     public HttpRequestExecutionThread(final String httpRequestUrl, final HttpRequest httpRequest, final HttpRequest.Callback callback, final Integer redirectCount) {
@@ -65,15 +92,26 @@ class HttpRequestExecutionThread extends Thread {
         _redirectCount = redirectCount;
     }
 
+    public void setOrigin(final String origin) {
+        _origin = origin;
+    }
+
     public void run() {
         try {
+            final String wssKey;
             final String urlString;
             {
-                final boolean isWebSocketRequest = _httpRequestUrl.startsWith("ws://") || _httpRequestUrl.startsWith("wss://");
-                String requestUrl = _httpRequestUrl;
-                if (isWebSocketRequest) {
-                    requestUrl = requestUrl.replaceFirst("ws", "http");
-                    _configureRequestForWebSocketUpgrade();
+                final boolean isSecureWebSocketRequest = _httpRequestUrl.startsWith("wss://");
+                final boolean isWebSocketRequest = _httpRequestUrl.startsWith("ws://");
+                final String requestUrl;
+                if (isWebSocketRequest || isSecureWebSocketRequest) {
+                    requestUrl = _httpRequestUrl.replaceFirst("ws", "http");
+                    final String generatedWssKey = _configureRequestForWebSocketUpgrade(isSecureWebSocketRequest);
+                    wssKey = (_httpRequest.validatesSslCertificates() ? generatedWssKey : null);
+                }
+                else {
+                    requestUrl = _httpRequestUrl;
+                    wssKey = null;
                 }
                 final String queryString = _httpRequest._queryString;
                 if (! Util.isBlank(queryString)) {
@@ -86,7 +124,12 @@ class HttpRequestExecutionThread extends Thread {
 
             final URL url = new URL(urlString);
 
-            _connection = (HttpURLConnection) (url.openConnection());
+            if (_origin == null) {
+                _origin = (url.getProtocol() + "://" + url.getHost());
+            }
+            _httpRequest.setHeader("Origin", _origin);
+
+            _connection = (HttpURLConnection) url.openConnection();
 
             if (_connection instanceof HttpsURLConnection) {
                 final HttpsURLConnection httpsConnection = ((HttpsURLConnection) _connection);
@@ -131,9 +174,9 @@ class HttpRequestExecutionThread extends Thread {
                 if (postData != null) {
                     _connection.setDoOutput(true);
 
-                    try (final DataOutputStream out = new DataOutputStream(_connection.getOutputStream())) {
-                        out.write(postData.getBytes());
-                        out.flush();
+                    try (final DataOutputStream outputStream = new DataOutputStream(_connection.getOutputStream())) {
+                        outputStream.write(postData.getBytes());
+                        outputStream.flush();
                     }
                 }
             }
@@ -167,10 +210,10 @@ class HttpRequestExecutionThread extends Thread {
                 }
             }
 
-            final boolean upgradeToWebSocket = (_httpRequest.allowsWebSocketUpgrade() && HttpRequest.containsUpgradeToWebSocketHeader(responseHeaders));
+            final boolean upgradeToWebSocket = (_httpRequest.allowsWebSocketUpgrade() && HttpRequest.containsUpgradeToWebSocketHeader(responseHeaders, wssKey));
 
             if (! upgradeToWebSocket) {
-                if (responseCode >= 400) {
+                if ( (responseCode >= 400) || (responseCode == 101) ) { // NOTE: Switching Protocols (101) when upgradeToWebSocket was not expected indicates a problem within the WebSocket handshake.
                     InputStream errorStream = null;
                     { // Attempt to obtain the errorStream, but fallback to the inputStream if errorStream is unavailable.
                         try {
@@ -185,11 +228,11 @@ class HttpRequestExecutionThread extends Thread {
                         }
                     }
 
-                    httpResponse._rawResult = ((errorStream != null) ? MutableByteArray.wrap(IoUtil.readStreamOrThrow(errorStream)) : null);
+                    httpResponse._rawResult = _readErrorStream(errorStream);
                 }
                 else {
                     final InputStream inputStream = _connection.getInputStream();
-                    httpResponse._rawResult = ((inputStream != null) ? MutableByteArray.wrap(IoUtil.readStreamOrThrow(inputStream)) : null);
+                    httpResponse._rawResult = (inputStream != null ? MutableByteArray.wrap(IoUtil.readStreamOrThrow(inputStream)) : null);
                 }
 
                 // Close Connection
