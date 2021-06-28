@@ -65,6 +65,9 @@ public class HttpResponse {
     public String getResponseMessage() { return _responseMessage; }
 
     public synchronized Json getJsonResult() {
+        if (_rawResult == null) {
+            return null;
+        }
         return Json.parse(StringUtil.bytesToString(_rawResult.getBytes()));
     }
 

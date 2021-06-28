@@ -75,14 +75,30 @@ class HttpRequestExecutionThread extends Thread {
         return null;
     }
 
-    protected ByteArray _readErrorStream(final InputStream inputStream) throws Exception {
-        if (inputStream == null) { return null; }
+    protected ByteArray _readErrorStream(final boolean waitForData) throws Exception {
+        InputStream errorStream = null;
+        { // Attempt to obtain the errorStream, but fallback to the inputStream if errorStream is unavailable.
+            try {
+                errorStream = _connection.getErrorStream();
+            }
+            catch (final Exception exception) { }
+            if (errorStream == null) {
+                try {
+                    errorStream = _connection.getInputStream();
+                }
+                catch (final Exception exception) { }
+            }
+        }
 
-        // Only attempt to read from the stream if bytes are immediately available without blocking...
-        // The inputStream type is HttpInputStream which appears to honor InputStream::available().
-        if (inputStream.available() < 1) { return null; }
+        if (errorStream == null) { return null; }
 
-        return MutableByteArray.wrap(IoUtil.readStreamOrThrow(inputStream));
+        if (! waitForData) {
+            // Only attempt to read from the stream if bytes are immediately available without blocking...
+            // The inputStream type is HttpInputStream which appears to honor InputStream::available().
+            if (errorStream.available() < 1) { return null; }
+        }
+
+        return MutableByteArray.wrap(IoUtil.readStreamOrThrow(errorStream));
     }
 
     public HttpRequestExecutionThread(final String httpRequestUrl, final HttpRequest httpRequest, final HttpRequest.Callback callback, final Integer redirectCount) {
@@ -213,22 +229,11 @@ class HttpRequestExecutionThread extends Thread {
             final boolean upgradeToWebSocket = (_httpRequest.allowsWebSocketUpgrade() && HttpRequest.containsUpgradeToWebSocketHeader(responseHeaders, wssKey));
 
             if (! upgradeToWebSocket) {
-                if ( (responseCode >= 400) || (responseCode == 101) ) { // NOTE: Switching Protocols (101) when upgradeToWebSocket was not expected indicates a problem within the WebSocket handshake.
-                    InputStream errorStream = null;
-                    { // Attempt to obtain the errorStream, but fallback to the inputStream if errorStream is unavailable.
-                        try {
-                            errorStream = _connection.getErrorStream();
-                        }
-                        catch (final Exception exception) { }
-                        if (errorStream == null) {
-                            try {
-                                errorStream = _connection.getInputStream();
-                            }
-                            catch (final Exception exception) { }
-                        }
-                    }
-
-                    httpResponse._rawResult = _readErrorStream(errorStream);
+                if (responseCode == 101) { // NOTE: Switching Protocols (101) when upgradeToWebSocket was not expected indicates a problem within the WebSocket handshake.
+                    httpResponse._rawResult = _readErrorStream(false);
+                }
+                else if (responseCode >= 400) {
+                    httpResponse._rawResult = _readErrorStream(true);
                 }
                 else {
                     final InputStream inputStream = _connection.getInputStream();
