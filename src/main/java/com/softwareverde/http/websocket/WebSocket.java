@@ -46,17 +46,17 @@ public class WebSocket implements AutoCloseable {
 
             try {
                 while (true) {
-                    final Long pingInterval = _pingInterval;
-                    if (pingInterval == null) { break; }
-
-                    Thread.sleep(pingInterval);
-
                     final int pingNonce = (int) (Math.random() * Integer.MAX_VALUE);
                     final byte[] pingNonceBytes = ByteUtil.integerToBytes(pingNonce);
 
                     synchronized (_webSocketWriter) {
                         _webSocketWriter.writePing(pingNonceBytes);
                     }
+
+                    final Long pingInterval = _pingInterval;
+                    if (pingInterval == null) { break; }
+
+                    Thread.sleep(pingInterval);
                 }
             }
             catch (final InterruptedException exception) { }
