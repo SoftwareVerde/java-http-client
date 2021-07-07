@@ -43,22 +43,19 @@ public class WebSocket implements AutoCloseable {
         @Override
         public void run() {
             final Thread thread = Thread.currentThread();
-
             try {
-                Thread.sleep(100L);
-
                 while (true) {
-                    final int pingNonce = (int) (Math.random() * Integer.MAX_VALUE);
-                    final byte[] pingNonceBytes = ByteUtil.integerToBytes(pingNonce);
-
-                    synchronized (_webSocketWriter) {
-                        _webSocketWriter.writePing(pingNonceBytes);
-                    }
-
                     final Long pingInterval = _pingInterval;
                     if (pingInterval == null) { break; }
 
                     Thread.sleep(pingInterval);
+
+                    final long pingNonce = (int) (Math.random() * Integer.MAX_VALUE);
+                    final byte[] pingNonceBytes = ByteUtil.longToBytes(pingNonce);
+
+                    synchronized (_webSocketWriter) {
+                        _webSocketWriter.writePing(pingNonceBytes);
+                    }
                 }
             }
             catch (final InterruptedException exception) { }
@@ -79,7 +76,7 @@ public class WebSocket implements AutoCloseable {
     protected BinaryMessageReceivedCallback _binaryMessageReceivedCallback;
     protected ConnectionClosedCallback _connectionClosedCallback;
     protected Thread _pingThread;
-    protected Long _pingInterval = 60000L;
+    protected Long _pingInterval = 15000L;
 
     protected final AtomicBoolean _closedCallbackInvoked = new AtomicBoolean(false);
 
