@@ -1,5 +1,7 @@
 package com.softwareverde.http.websocket;
 
+import com.softwareverde.util.ByteUtil;
+import com.softwareverde.util.Util;
 import org.eclipse.jetty.websocket.WebSocketBuffers;
 import org.eclipse.jetty.websocket.WebSocketConnectionRFC6455;
 
@@ -37,11 +39,61 @@ public class WebSocket implements AutoCloseable {
     protected final WebSocketReader _webSocketReader;
     protected final WebSocketWriter _webSocketWriter;
 
+    protected final Runnable _pingRunnable = new Runnable() {
+        @Override
+        public void run() {
+            final Thread thread = Thread.currentThread();
+
+            try {
+                while (true) {
+                    final Long pingInterval = _pingInterval;
+                    if (pingInterval == null) { break; }
+
+                    Thread.sleep(pingInterval);
+
+                    final int pingNonce = (int) (Math.random() * Integer.MAX_VALUE);
+                    final byte[] pingNonceBytes = ByteUtil.integerToBytes(pingNonce);
+
+                    synchronized (_webSocketWriter) {
+                        _webSocketWriter.writePing(pingNonceBytes);
+                    }
+                }
+            }
+            catch (final InterruptedException exception) { }
+            catch (final Exception exception) {
+                _close(WebSocketConnectionRFC6455.CLOSE_NO_CODE, "");
+            }
+            finally {
+                synchronized (_pingRunnable) {
+                    if (_pingThread == thread) {
+                        _pingThread = null;
+                    }
+                }
+            }
+        }
+    };
+
     protected MessageReceivedCallback _messageReceivedCallback;
     protected BinaryMessageReceivedCallback _binaryMessageReceivedCallback;
     protected ConnectionClosedCallback _connectionClosedCallback;
+    protected Thread _pingThread;
+    protected Long _pingInterval = 60000L;
 
     protected final AtomicBoolean _closedCallbackInvoked = new AtomicBoolean(false);
+
+    protected void _startPingThread() {
+        synchronized (_pingRunnable) {
+            if (_pingThread != null) {
+                _pingThread.interrupt();
+            }
+
+            final Thread pingThread = new Thread(_pingRunnable);
+            pingThread.setDaemon(true);
+            pingThread.setName("WebSocket Ping Thread");
+            pingThread.start();
+            _pingThread = pingThread;
+        }
+    }
 
     protected void _runOnSeparateThread(final Runnable runnable) {
         (new Thread(runnable)).start();
@@ -65,6 +117,13 @@ public class WebSocket implements AutoCloseable {
             socket.close();
         }
         catch (final Exception exception) { }
+
+        synchronized (_pingRunnable) {
+            final Thread pingThread = _pingThread;
+            if (pingThread != null) {
+                pingThread.interrupt();
+            }
+        }
 
         if (! _closedCallbackInvoked.getAndSet(true)) {
             final ConnectionClosedCallback connectionClosedCallback = _connectionClosedCallback;
@@ -136,6 +195,7 @@ public class WebSocket implements AutoCloseable {
         });
 
         _webSocketWriter = new WebSocketWriter(_mode, webSocketBuffers, socketStreams);
+        _startPingThread();
     }
 
     public void setMessageReceivedCallback(final MessageReceivedCallback messageReceivedCallback) {
@@ -152,6 +212,21 @@ public class WebSocket implements AutoCloseable {
 
     public Long getId() {
         return _webSocketId;
+    }
+
+    public void setPingInterval(final Long intervalMs) {
+        final Long cleanedIntervalMs = (Util.coalesce(intervalMs) <= 0L ? null : intervalMs);
+        _pingInterval = cleanedIntervalMs;
+
+        if (cleanedIntervalMs != null) {
+            _startPingThread();
+        }
+        else {
+            final Thread pingThread = _pingThread;
+            if (pingThread != null) {
+                pingThread.interrupt();
+            }
+        }
     }
 
     public void setSocketTimeout(final Integer socketTimeoutMs) {
