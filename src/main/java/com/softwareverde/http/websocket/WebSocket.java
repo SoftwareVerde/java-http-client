@@ -45,6 +45,8 @@ public class WebSocket implements AutoCloseable {
             final Thread thread = Thread.currentThread();
 
             try {
+                Thread.sleep(100L);
+
                 while (true) {
                     final int pingNonce = (int) (Math.random() * Integer.MAX_VALUE);
                     final byte[] pingNonceBytes = ByteUtil.integerToBytes(pingNonce);
@@ -262,6 +264,17 @@ public class WebSocket implements AutoCloseable {
             catch (final Exception exception) {
                 _close(WebSocketConnectionRFC6455.CLOSE_NO_CODE, "");
             }
+        }
+    }
+
+    public void sendPing(final byte[] pingNonce) {
+        try {
+            synchronized (_webSocketWriter) {
+                _webSocketWriter.writePing(pingNonce);
+            }
+        }
+        catch (final Exception exception) {
+            _close(WebSocketConnectionRFC6455.CLOSE_NO_CODE, "");
         }
     }
 
