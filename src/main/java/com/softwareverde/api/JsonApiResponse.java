@@ -14,8 +14,8 @@ public class JsonApiResponse extends ApiResponse {
         super(httpResponse);
 
         _json = httpResponse.getJsonResult();
-        _wasSuccess = Util.coalesce(_json.getOrNull("wasSuccess", Json.Types.BOOLEAN), true);
-        _errorMessage = _json.getString("errorMessage");
+        _wasSuccess = _json != null && Util.coalesce(_json.getOrNull("wasSuccess", Json.Types.BOOLEAN), true);
+        _errorMessage = _json == null ? null : _json.getString("errorMessage");
     }
 
     public Json getJson() {
