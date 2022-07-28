@@ -1,10 +1,16 @@
 package com.softwareverde.http.websocket;
 
+import com.amo.websocket.FrameType;
+import com.amo.websocket.server.BasicFrame;
+import com.amo.websocket.server.BasicFrameReader;
+import com.amo.websocket.server.BasicFrameWriter;
+import com.amo.websocket.server.PongFrame;
 import com.softwareverde.util.ByteUtil;
 import com.softwareverde.util.Util;
 import org.eclipse.jetty.websocket.WebSocketBuffers;
 import org.eclipse.jetty.websocket.WebSocketConnectionRFC6455;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
@@ -36,12 +42,13 @@ public class WebSocket implements AutoCloseable {
     protected final Integer _maxPacketByteCount;
     protected final ConnectionLayer _connectionLayer;
 
-    protected final WebSocketReader _webSocketReader;
-    protected final WebSocketWriter _webSocketWriter;
+    protected final BasicFrameReader _webSocketReader;
+    protected final BasicFrameWriter _webSocketWriter;
 
     protected final Runnable _pingRunnable = new Runnable() {
         @Override
         public void run() {
+            System.out.println("running");
             final Thread thread = Thread.currentThread();
             try {
                 while (true) {
@@ -54,7 +61,8 @@ public class WebSocket implements AutoCloseable {
                     final byte[] pingNonceBytes = ByteUtil.longToBytes(pingNonce);
 
                     synchronized (_webSocketWriter) {
-                        _webSocketWriter.writePing(pingNonceBytes);
+                        _webSocketWriter.write(new BasicFrame(false, false, false, false, false, FrameType.PING_FRAME, (byte) pingNonceBytes.length, null, pingNonceBytes));
+                        System.out.println("websocketwriter wrote " + pingNonce);
                     }
                 }
             }
@@ -91,6 +99,7 @@ public class WebSocket implements AutoCloseable {
             pingThread.setName("WebSocket Ping Thread");
             pingThread.start();
             _pingThread = pingThread;
+            System.out.println("started ping thread");
         }
     }
 
@@ -101,18 +110,21 @@ public class WebSocket implements AutoCloseable {
     protected void _close(final int code, final String message) {
         try {
             final InputStream inputStream = _connectionLayer.getInputStream();
+            System.out.println("closing " + inputStream);
             inputStream.close();
         }
         catch (final Exception exception) { }
 
         try {
             final OutputStream outputStream = _connectionLayer.getOutputStream();
+            System.out.println("closing " + outputStream);
             outputStream.close();
         }
         catch (final Exception exception) { }
 
         try {
             final Socket socket = _connectionLayer.getSocket();
+            System.out.println("closing " + socket);
             socket.close();
         }
         catch (final Exception exception) { }
@@ -147,6 +159,7 @@ public class WebSocket implements AutoCloseable {
             // Setting the Socket Timeout prevents writes from being blocked by unprocessed reads.
             final Socket socket = connectionLayer.getSocket();
             socket.setSoTimeout(DEFAULT_SO_TIMEOUT);
+            System.out.println("got websocket");
         }
         catch (final Exception exception) { }
 
@@ -155,45 +168,8 @@ public class WebSocket implements AutoCloseable {
         final SocketStreams socketStreams = new SocketStreams(_connectionLayer);
         // try { socketStreams.setMaxIdleTime(0); } catch (final Exception exception) { }
 
-        _webSocketReader = new WebSocketReader(_mode, socketStreams, webSocketBuffers, new WebSocketReader.MessageReceivedCallback() {
-            @Override
-            public void onTextMessage(final String message) {
-                final MessageReceivedCallback messageReceivedCallback = _messageReceivedCallback;
-                if (messageReceivedCallback != null) {
-                    messageReceivedCallback.onMessage(message);
-                }
-            }
-
-            @Override
-            public void onBinaryMessage(final byte[] message) {
-                final BinaryMessageReceivedCallback binaryMessageReceivedCallback = _binaryMessageReceivedCallback;
-                if (binaryMessageReceivedCallback != null) {
-                    binaryMessageReceivedCallback.onMessage(message);
-                }
-            }
-
-            @Override
-            public void onPing(final byte[] message) {
-                synchronized (_webSocketWriter) {
-                    try {
-                        _webSocketWriter.writePong(message);
-                    }
-                    catch (final Exception exception) {
-                        _close(WebSocketConnectionRFC6455.CLOSE_NO_CODE, "");
-                    }
-                }
-            }
-
-            @Override
-            public void onPong(final byte[] message) { }
-
-            @Override
-            public void onClose(final int code, final String message) {
-                _close(code, message);
-            }
-        });
-
-        _webSocketWriter = new WebSocketWriter(_mode, webSocketBuffers, socketStreams);
+        _webSocketReader = new BasicFrameReader(socketStreams.getInputStream(), webSocketBuffers.getBufferSize()) {};
+        _webSocketWriter = new BasicFrameWriter(socketStreams.getOutputStream());
         _startPingThread();
     }
 
@@ -238,14 +214,14 @@ public class WebSocket implements AutoCloseable {
         }
     }
 
-    public void startListening() {
-        _webSocketReader.start();
+    public void startListening() throws IOException {
+        _webSocketReader.read();
     }
 
     public void sendMessage(final String message) {
         synchronized (_webSocketWriter) {
             try {
-                _webSocketWriter.writeMessage(message);
+                _webSocketWriter.write(new BasicFrame(false, false, false, false, false, FrameType.TEXT_FRAME, (byte) message.length(), null, null));
             }
             catch (final Exception exception) {
                 _close(WebSocketConnectionRFC6455.CLOSE_NO_CODE, "");
@@ -256,7 +232,7 @@ public class WebSocket implements AutoCloseable {
     public void sendMessage(final byte[] bytes) {
         synchronized (_webSocketWriter) {
             try {
-                _webSocketWriter.writeMessage(bytes);
+                _webSocketWriter.write(new BasicFrame(false, false, false, false, false, FrameType.TEXT_FRAME, (byte) bytes.length, null, bytes));
             }
             catch (final Exception exception) {
                 _close(WebSocketConnectionRFC6455.CLOSE_NO_CODE, "");
@@ -267,7 +243,7 @@ public class WebSocket implements AutoCloseable {
     public void sendPing(final byte[] pingNonce) {
         try {
             synchronized (_webSocketWriter) {
-                _webSocketWriter.writePing(pingNonce);
+                _webSocketWriter.write(new BasicFrame(false, false, false, false, false, FrameType.PING_FRAME, (byte) pingNonce.length, null, pingNonce));
             }
         }
         catch (final Exception exception) {
