@@ -8,7 +8,7 @@ import org.eclipse.jetty.websocket.WebSocketParserRFC6455;
 import java.io.InputStream;
 import java.net.SocketTimeoutException;
 
-class WebSocketReader {
+public class WebSocketReader {
     public interface MessageReceivedCallback {
         void onTextMessage(String message);
         void onBinaryMessage(byte[] message);
@@ -23,6 +23,8 @@ class WebSocketReader {
     final ByteBuffer _packetBuffer;
 
     protected final Thread _readThread;
+
+    protected volatile boolean _waitForNoPendingWrites = false;
 
     public WebSocketReader(final WebSocket.Mode mode, final SocketStreams endPoint, final WebSocketBuffers webSocketBuffers, final MessageReceivedCallback messageReceivedCallback) {
         _messageReceivedCallback = messageReceivedCallback;
@@ -80,9 +82,11 @@ class WebSocketReader {
                     }
 
                     while (true) {
-                        do {
-                            Thread.sleep(100); // Prioritize writes since reading will block writes...
-                        } while ( (endPoint.getQueuedWriteByteCount() > 0) && (inputStream.available() < 1) );
+                        if (_waitForNoPendingWrites) {
+                            do {
+                                Thread.sleep(100); // Prioritize writes since reading will block writes...
+                            } while ((endPoint.getQueuedWriteByteCount() > 0) && (inputStream.available() < 1));
+                        }
 
                         final int readByteCount;
                         if (endPoint.isInputShutdown()) { break; }
@@ -106,6 +110,10 @@ class WebSocketReader {
                 endPoint.shutdown();
             }
         });
+    }
+
+    public void waitUntilWritesAreCompleted(final boolean value) {
+        _waitForNoPendingWrites = value;
     }
 
     public void start() {

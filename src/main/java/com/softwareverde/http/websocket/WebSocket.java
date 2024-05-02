@@ -36,8 +36,8 @@ public class WebSocket implements AutoCloseable {
     protected final Integer _maxPacketByteCount;
     protected final ConnectionLayer _connectionLayer;
 
-    protected final WebSocketReader _webSocketReader;
-    protected final WebSocketWriter _webSocketWriter;
+    protected WebSocketReader _webSocketReader;
+    protected WebSocketWriter _webSocketWriter;
 
     protected final Runnable _pingRunnable = new Runnable() {
         @Override

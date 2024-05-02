@@ -11,7 +11,7 @@ import java.net.Socket;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-class SocketStreams implements EndPoint {
+public class SocketStreams implements EndPoint {
     protected final AtomicBoolean _isShutdown = new AtomicBoolean(false);
     protected final ByteBuffer _packetBuffer = new ByteBuffer();
 

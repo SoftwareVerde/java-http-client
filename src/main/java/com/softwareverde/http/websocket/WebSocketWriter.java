@@ -9,7 +9,7 @@ import org.eclipse.jetty.websocket.WebSocketGeneratorRFC6455;
 import java.io.IOException;
 import java.security.SecureRandom;
 
-class WebSocketWriter {
+public class WebSocketWriter {
     protected final SocketStreams _endPoint;
     protected final WebSocketGeneratorRFC6455 _webSocketGeneratorRFC6455;
 

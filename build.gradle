@@ -1,12 +1,12 @@
 group 'com.softwareverde'
-version '2.2.5'
+version '2.2.6'
 
 apply plugin: 'java'
 apply plugin: 'java-library'
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
 }
 
 repositories {
@@ -15,9 +15,9 @@ repositories {
 }
 
 dependencies {
-    api                 group: 'com.github.softwareverde',  name: 'json',                   version: 'v2.0.0'
-    implementation      group: 'com.github.softwareverde',  name: 'java-logging',           version: 'v2.2.0'
-    implementation      group: 'com.github.softwareverde',  name: 'java-util',              version: 'v2.7.3'
+    api                 group: 'com.github.softwareverde',  name: 'json',                   version: 'v2.0.2'
+    implementation      group: 'com.github.softwareverde',  name: 'java-logging',           version: 'v2.3.0'
+    implementation      group: 'com.github.softwareverde',  name: 'java-util',              version: 'v2.9.2'
     implementation      group: 'com.github.softwareverde',  name: 'java-cryptography',      version: 'v3.2.1'
 
     testImplementation  group: 'junit', name: 'junit', version: '4.12'
