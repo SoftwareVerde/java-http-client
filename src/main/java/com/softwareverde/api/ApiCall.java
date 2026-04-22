@@ -28,7 +28,8 @@ public abstract class ApiCall<REQUEST extends ApiRequest, RESPONSE extends ApiRe
         long startTime = System.currentTimeMillis();
         final HttpRequest httpRequest;
         try {
-            final String baseUrl = _getConfiguration().getApiUrl();
+            final ApiConfiguration apiConfiguration = _getConfiguration();
+            final String baseUrl = apiConfiguration.getApiUrl();
             final String fullUrl = baseUrl + Util.coalesce(requestPath);
 
             final ByteArray requestData = MutableByteArray.wrap(request.toBytes());
@@ -37,6 +38,7 @@ public abstract class ApiCall<REQUEST extends ApiRequest, RESPONSE extends ApiRe
             httpRequest.setUrl(fullUrl);
             httpRequest.setMethod(requestMethod);
             httpRequest.setRequestData(requestData);
+            httpRequest.setFollowsRedirects(apiConfiguration.followsRedirects());
             for (final String header : request.getHeaderNames()) {
                 final String value = request.getHeader(header);
                 httpRequest.setHeader(header, value);

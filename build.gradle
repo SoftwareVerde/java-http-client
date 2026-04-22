@@ -5,7 +5,7 @@ plugins {
 }
 
 group 'com.softwareverde'
-version '2.2.6'
+version '2.2.7'
 
 java {
     sourceCompatibility = JavaVersion.VERSION_11
