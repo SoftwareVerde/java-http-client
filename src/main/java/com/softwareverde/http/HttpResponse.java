@@ -1,7 +1,6 @@
 package com.softwareverde.http;
 
 import com.softwareverde.constable.bytearray.ByteArray;
-import com.softwareverde.http.websocket.WebSocket;
 import com.softwareverde.json.Json;
 import com.softwareverde.util.StringUtil;
 
@@ -13,7 +12,6 @@ public class HttpResponse {
     protected ByteArray _rawResult;
     protected Integer _responseCode;
     protected String _responseMessage;
-    protected WebSocket _webSocket = null;
     protected Map<String, List<String>> _headers = null;
 
     // NOTE: Handles both android-formatted and ios-formatted cookie strings.
@@ -56,10 +54,6 @@ public class HttpResponse {
         return cookies;
     }
 
-    public WebSocket getWebSocket() {
-        return _webSocket;
-    }
-
     public Integer getResponseCode() { return _responseCode; }
 
     public String getResponseMessage() { return _responseMessage; }
@@ -88,9 +82,5 @@ public class HttpResponse {
         }
 
         return new LinkedList<String>();
-    }
-
-    public boolean didUpgradeToWebSocket() {
-        return (_webSocket != null);
     }
 }

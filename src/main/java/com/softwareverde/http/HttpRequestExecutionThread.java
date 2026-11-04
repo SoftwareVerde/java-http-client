@@ -55,26 +55,6 @@ class HttpRequestExecutionThread extends Thread {
         }
     }
 
-    protected String _configureRequestForWebSocketUpgrade(final Boolean isSecureWebSocket) {
-        final SecureRandom secureRandom = new SecureRandom();
-        final byte[] key = new byte[16];
-        secureRandom.nextBytes(key);
-
-        _httpRequest.setAllowWebSocketUpgrade(true);
-        _httpRequest.setHeader("Upgrade", "websocket");
-        _httpRequest.setHeader("Connection", "upgrade");
-
-        if (isSecureWebSocket) {
-            final String wssKey = Base64Util.toBase64String(key);
-            _httpRequest.setHeader("Sec-WebSocket-Version", "13");
-            _httpRequest.setHeader("Sec-WebSocket-Key", wssKey);
-            _httpRequest.setHeader("Sec-WebSocket-Extensions", "permessage-deflate; client_max_window_bits");
-            return wssKey;
-        }
-
-        return null;
-    }
-
     protected ByteArray _readErrorStream(final boolean waitForData) throws Exception {
         InputStream errorStream = null;
         { // Attempt to obtain the errorStream, but fallback to the inputStream if errorStream is unavailable.
@@ -121,9 +101,10 @@ class HttpRequestExecutionThread extends Thread {
                 final boolean isWebSocketRequest = _httpRequestUrl.startsWith("ws://");
                 final String requestUrl;
                 if (isWebSocketRequest || isSecureWebSocketRequest) {
-                    requestUrl = _httpRequestUrl.replaceFirst("ws", "http");
-                    final String generatedWssKey = _configureRequestForWebSocketUpgrade(isSecureWebSocketRequest);
-                    wssKey = (_httpRequest.validatesSslCertificates() ? generatedWssKey : null);
+                    requestUrl = _httpRequestUrl;
+
+                    Logger.warn("Websockets not supported.");
+                    wssKey = null;
                 }
                 else {
                     requestUrl = _httpRequestUrl;
@@ -226,8 +207,7 @@ class HttpRequestExecutionThread extends Thread {
                 }
             }
 
-            final boolean upgradeToWebSocket = (_httpRequest.allowsWebSocketUpgrade() && HttpRequest.containsUpgradeToWebSocketHeader(responseHeaders, wssKey));
-
+            final boolean upgradeToWebSocket = HttpRequest.containsUpgradeToWebSocketHeader(responseHeaders, wssKey);
             if (! upgradeToWebSocket) {
                 if (responseCode == 101) { // NOTE: Switching Protocols (101) when upgradeToWebSocket was not expected indicates a problem within the WebSocket handshake.
                     httpResponse._rawResult = _readErrorStream(false);
@@ -244,15 +224,8 @@ class HttpRequestExecutionThread extends Thread {
                 _connection.disconnect();
             }
             else {
-                try {
-                    final Socket socket = _extractConnectionSocket();
-                    final HttpRequest.WebSocketFactory webSocketFactory = _httpRequest._webSocketFactory;
-                    httpResponse._webSocket = webSocketFactory.newWebSocket(socket);
-                }
-                catch (final Exception exception) {
-                    Logger.warn("Unable to get underlying socket for WebSocket within HttpRequest via reflection.", exception);
-                    _connection.disconnect();
-                }
+                Logger.warn("Websockets not supported.");
+                _connection.disconnect();
             }
 
             _connection = null;

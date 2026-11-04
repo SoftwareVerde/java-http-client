@@ -3,8 +3,6 @@ package com.softwareverde.http;
 import com.softwareverde.constable.bytearray.ByteArray;
 import com.softwareverde.constable.bytearray.MutableByteArray;
 import com.softwareverde.cryptography.util.HashUtil;
-import com.softwareverde.http.websocket.ConnectionLayer;
-import com.softwareverde.http.websocket.WebSocket;
 import com.softwareverde.logging.Logger;
 import com.softwareverde.util.Base64Util;
 import com.softwareverde.util.Container;
@@ -15,13 +13,11 @@ import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.X509ExtendedTrustManager;
-import java.net.Socket;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicLong;
 
 public class HttpRequest {
     static {
@@ -33,20 +29,6 @@ public class HttpRequest {
 
     public interface Callback {
         void run(HttpResponse response);
-    }
-
-    public interface WebSocketFactory {
-        WebSocket newWebSocket(Socket socket);
-    }
-
-    public static class DefaultWebSocketFactory implements WebSocketFactory {
-        private static final AtomicLong NEXT_WEB_SOCKET_ID = new AtomicLong(1L);
-
-        @Override
-        public WebSocket newWebSocket(final Socket socket) {
-            final Long webSocketId = NEXT_WEB_SOCKET_ID.getAndIncrement();
-            return new WebSocket(webSocketId, WebSocket.Mode.CLIENT, ConnectionLayer.newConnectionLayer(socket), WebSocket.DEFAULT_MAX_PACKET_BYTE_COUNT);
-        }
     }
 
     protected static final HostnameVerifier NAIVE_HOSTNAME_VERIFIER = new HostnameVerifier() {
@@ -121,9 +103,6 @@ public class HttpRequest {
     protected Integer _maxRedirectCount = 10;
     protected Boolean _validateSslCertificates = true;
 
-    protected Boolean _allowWebSocketUpgrade = false;
-    protected WebSocketFactory _webSocketFactory = new DefaultWebSocketFactory();
-
     protected HttpRequestExecutionThread _executionThread;
 
     public HttpRequest() { }
@@ -183,18 +162,6 @@ public class HttpRequest {
         else {
             _postData = new MutableByteArray(0);
         }
-    }
-
-    public void setAllowWebSocketUpgrade(final boolean allowWebSocketUpgrade) {
-        _allowWebSocketUpgrade = allowWebSocketUpgrade;
-    }
-
-    public void setWebSocketFactory(final WebSocketFactory webSocketFactory) {
-        _webSocketFactory = webSocketFactory;
-    }
-
-    public boolean allowsWebSocketUpgrade() {
-        return _allowWebSocketUpgrade;
     }
 
     public void setMaxRedirectCount(final int maxRedirectCount) {
